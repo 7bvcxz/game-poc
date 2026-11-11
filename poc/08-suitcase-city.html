@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Suitcase City · Playable POC</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#342c30;background:#f7eede}*{box-sizing:border-box}body{margin:0}main{max-width:980px;margin:auto;padding:22px}h1{margin:0;font-size:clamp(28px,5vw,48px)}p{line-height:1.5}.sub{color:#7c6970}.panel{background:#fffaf1;border:2px solid #d6b8a0;border-radius:20px;padding:18px;margin:14px 0;box-shadow:0 6px 0 #e6d6c4}.stats{display:flex;flex-wrap:wrap;gap:10px}.stat{background:#f2e2d0;padding:10px 16px;border-radius:12px;flex:1;min-width:120px}.stat b{display:block;font-size:24px}.actions{display:flex;flex-wrap:wrap;gap:8px}button{font:inherit;cursor:pointer;border:2px solid #856052;border-radius:12px;background:#fff4db;color:#49372f;padding:11px 14px;font-weight:700}button:hover:not(:disabled){background:#ffe0a7}button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible{outline:3px solid #4d87a3}button.selected{background:#8e634e;color:white}.case{position:relative;background:#bd8e69;border:12px solid #865c49;border-radius:30px;padding:18px;box-shadow:inset 0 0 0 4px #e4b98b}.case:before{content:'✦ SUITCASE CITY ✦';display:block;text-align:center;font-size:12px;letter-spacing:3px;margin-bottom:12px;color:#fff3df}.grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}.tile{aspect-ratio:1;min-width:0;padding:3px;background:#e9d7b9;border:2px dashed #b9977a;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-direction:column;touch-action:manipulation}.tile .emoji{font-size:clamp(20px,4vw,36px)}.tile small{font-size:10px}.tile.filled{background:#e9f2da;border-style:solid;border-color:#79935c}.tile.folded{background:#dac6ac;color:#856d5e}.tile.folded .emoji{filter:grayscale(1);opacity:.6}.message{min-height:54px;background:#e9f2e0;border-left:5px solid #829b65;padding:12px;border-radius:8px}.bar{height:14px;background:#e2cdbb;border-radius:99px;overflow:hidden}.bar span{display:block;background:#6f9b70;height:100%;transition:width .2s}.note{font-size:13px;color:#705f59}#foldPanel{display:none}#foldPanel.active{display:block}.footer{font-size:12px;color:#806d61}@media(max-width:550px){main{padding:12px}.panel{padding:12px}.case{padding:9px;border-width:8px}.grid{gap:4px}.tile{border-radius:6px}.tile small{font-size:9px}button{padding:10px}}
+</style></head><body><main>
+<header><h1>🧳 Suitcase City</h1><p class="sub">Build a tiny pop-up city. Fold it to fit your suitcase. Move to earn a bigger future.</p></header>
+<div class="panel stats"><div class="stat">Coins <b id="coins">0</b></div><div class="stat">Residents <b id="people">0</b></div><div class="stat">Rent / tick <b id="income">0</b></div><div class="stat">Trips <b id="trips">0</b></div></div>
+<section class="panel"><strong>1 · Build your city</strong><p class="note">Choose a building, then tap an empty square. Houses earn rent; parks boost each house's rent. Each building occupies one open square but has a different folded size.</p><div class="actions"><button id="house" class="selected" type="button">🏠 House · 6 coins</button><button id="park" type="button">🌳 Park · 12 coins</button><button id="earn" type="button">⏩ Collect rent</button><button id="reset" type="button">↺ Reset</button></div><p id="message" class="message" role="status" aria-live="polite">Welcome! You have 20 coins. Place a house to start.</p></section>
+<section class="panel"><div class="case"><div id="grid" class="grid" aria-label="5 by 4 city building grid"></div></div><p class="note">Tap an occupied square to fold/unfold it. Folded buildings stop earning rent, but pack smaller. Tap again to unfold.</p></section>
+<section class="panel"><strong>2 · Pack for your next trip</strong><p class="note">The suitcase has a packing limit. Houses cost 3 space unfolded / 1 folded; parks cost 2 / 1. Your moving bonus grows with residents and the number of buildings you successfully pack.</p><p>Pack usage: <b id="used">0</b> / <b id="limit">12</b></p><div class="bar"><span id="fill" style="width:0"></span></div><p id="packHint" class="note"></p><div class="actions"><button id="move" type="button">🚂 Move to next city</button></div><div id="foldPanel" class="message" aria-live="polite"></div></section>
+<p class="footer">Standalone experimental game · no external assets · GAME-20261029-15-01 · Idea Ledger reevaluation 91/100. Keyboard: Tab and Enter/Space work on all controls.</p>
+</main><script>
+'use strict';
+const $=id=>document.getElementById(id);
+const W=5,H=4,COST={house:6,park:12},SPACE={house:3,park:2};
+let s,selected;
+function fresh(){s={coins:20,trips:0,tiles:Array(W*H).fill(null),totalRent:0};selected='house';$('foldPanel').classList.remove('active');$('foldPanel').textContent='';say('Welcome! Place a house, collect rent, then fold buildings to move.');render()}
+function say(t){$('message').textContent=t}
+function buildings(){return s.tiles.filter(Boolean)}
+function residents(){return buildings().filter(t=>t.type==='house').length*2}
+function rent(){const houses=buildings().filter(t=>t.type==='house'&&!t.folded).length,parks=buildings().filter(t=>t.type==='park'&&!t.folded).length;return houses*(3+parks)}
+function usage(){return buildings().reduce((a,t)=>a+(t.folded?1:SPACE[t.type]),0)}
+function limit(){return 12+s.trips*2}
+function render(){
+$('coins').textContent=s.coins;$('people').textContent=residents();$('income').textContent=rent();$('trips').textContent=s.trips;
+$('used').textContent=usage();$('limit').textContent=limit();$('fill').style.width=Math.min(100,usage()/limit()*100)+'%';$('fill').style.background=usage()>limit()?'#c95555':'#6f9b70';
+$('packHint').textContent=usage()>limit()?'Too bulky! Fold more buildings before moving.':'Packed space remaining: '+(limit()-usage())+'. Fold houses to shrink them.';
+$('move').disabled=buildings().length===0||usage()>limit();
+for(const type of ['house','park']){$(type).classList.toggle('selected',selected===type);$(type).setAttribute('aria-pressed',String(selected===type))}
+const grid=$('grid');grid.replaceChildren();s.tiles.forEach((tile,i)=>{const b=document.createElement('button');b.type='button';b.className='tile'+(tile?' filled':'')+(tile&&tile.folded?' folded':'');const icon=document.createElement('span');icon.className='emoji';icon.textContent=tile?(tile.folded?'📦':tile.type==='house'?'🏠':'🌳'):'＋';const cap=document.createElement('small');cap.textContent=tile?(tile.folded?'Folded':tile.type==='house'?'House':'Park'):'Empty';b.append(icon,cap);b.setAttribute('aria-label','Plot '+(i+1)+': '+(tile?(tile.folded?'folded ':'')+tile.type:'empty; build '+selected));b.addEventListener('click',()=>tap(i));grid.append(b)});
+}
+function tap(i){const t=s.tiles[i];if(t){t.folded=!t.folded;say((t.folded?'Folded ':'Unfolded ')+t.type+'! Packing '+usage()+'/'+limit()+'.');render();return}
+if(s.coins<COST[selected]){say('Not enough coins for '+selected+'. Collect rent first.');return}
+s.coins-=COST[selected];s.tiles[i]={type:selected,folded:false};say('Built a '+selected+'! Your rent is now '+rent()+' per tick.');render()}
+$('house').onclick=()=>{selected='house';render()};$('park').onclick=()=>{selected='park';render()};
+$('earn').onclick=()=>{const n=rent();if(!n){say('Unfold at least one house to earn rent.');return}s.coins+=n;s.totalRent+=n;say('Collected '+n+' coins in rent! Total earned: '+s.totalRent+'.');render()};
+$('move').onclick=()=>{if(!buildings().length||usage()>limit())return;const bonus=10+residents()*3+buildings().length*2+s.trips*5;s.trips++;s.coins+=bonus;s.tiles=Array(W*H).fill(null);$('foldPanel').classList.add('active');$('foldPanel').textContent='🎉 Successful move! +'+bonus+' coins. Your suitcase now holds '+limit()+' space. Build a new city!';say('New destination unlocked! Your packing choices earned '+bonus+' coins.');render()};
+$('reset').onclick=()=>{if(confirm('Reset your suitcase city and all progress?'))fresh()};
+fresh();
+</script></body></html>
