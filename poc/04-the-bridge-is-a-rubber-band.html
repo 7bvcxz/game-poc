@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#17182c">
+<title>The Bridge Is a Rubber Band · Game POC</title>
+<style>
+:root{color-scheme:dark;--bg:#111324;--panel:#1c2039;--stroke:#343958;--text:#f4f2e9;--muted:#aeb5cd;--gold:#ffd58b;--mint:#83f1c7;--purple:#baadff}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 15% 0%,#31305a,#141527 59%,#0e1020);color:var(--text);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}main{width:min(1040px,calc(100% - 24px));margin:auto;padding:22px 0 42px}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.tag{text-transform:uppercase;letter-spacing:.18em;font-size:11px;font-weight:800;color:var(--mint)}h1{font-size:clamp(25px,4vw,43px);letter-spacing:-.055em;line-height:1.05;margin:7px 0}.subtitle{color:var(--muted);margin:9px 0 18px}.pill{border:1px solid #44486c;background:#282d47;color:#dbd5ff;padding:7px 12px;border-radius:999px;font-size:12px;white-space:nowrap}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px}.stat{padding:11px 13px;border:1px solid var(--stroke);border-radius:13px;background:#1c2038}.stat span{display:block;font-size:11px;color:var(--muted)}.stat strong{font-size:24px;font-variant-numeric:tabular-nums;letter-spacing:-.035em}.scene{border:1px solid #4d4f74;border-radius:19px;overflow:hidden;background:#1a2240;box-shadow:0 22px 58px #0005;position:relative}canvas{width:100%;height:auto;aspect-ratio:900/420;display:block;touch-action:none;cursor:crosshair}.overlay{position:absolute;left:14px;top:13px;background:#151b32cc;border:1px solid #6a739666;padding:7px 10px;border-radius:9px;color:#ecf0ff;font-size:12px;pointer-events:none}.board{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(250px,.85fr);gap:12px;margin-top:12px}.panel{background:var(--panel);border:1px solid var(--stroke);border-radius:16px;padding:17px}.panel h2{font-size:15px;margin:0 0 9px;color:#f2ecfe}.hint{font-size:12px;color:var(--muted);margin:0 0 12px}label{display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:#e8e4ff}input[type=range]{width:100%;accent-color:var(--mint);margin:7px 0 15px;height:21px;cursor:pointer}.actions{display:flex;gap:8px;flex-wrap:wrap}button{font:inherit;font-weight:800;border:1px solid #605785;background:#353455;color:#fff;border-radius:11px;padding:11px 14px;cursor:pointer;transition:transform .1s,filter .1s}button:hover:not(:disabled){filter:brightness(1.12)}button:active:not(:disabled){transform:scale(.975)}button:disabled{opacity:.43;cursor:not-allowed}button.primary{background:linear-gradient(110deg,#f9bb7d,#f0a25c);color:#292031;border:none;flex:1}button.secondary{background:#274e4b;border-color:#457c74;color:#a8ffe3}.upgrades{display:grid;gap:9px}.upgrade{width:100%;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:8px}.upgrade span{font-weight:600;font-size:12px;color:#c7cce5}.upgrade b{white-space:nowrap;color:var(--gold)}.message{min-height:36px;border-radius:9px;color:#bcfbdc;font-size:13px;font-weight:750;margin-top:10px}.progress{height:7px;border-radius:9px;background:#3a3657;overflow:hidden;margin-top:8px}.progress>div{height:100%;width:0;background:linear-gradient(90deg,#93ecca,#ffe0a4);transition:width .25s}.foot{color:#8e98b6;font-size:12px;margin-top:14px}kbd{font:inherit;background:#333a56;border:1px solid #666d8c;padding:1px 5px;border-radius:4px}@media(max-width:690px){.board{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,1fr)}.stat strong{font-size:20px}.panel{padding:14px}.overlay{font-size:10px;top:8px;left:8px}.subtitle{font-size:13px}}
+</style>
+</head>
+<body>
+<main>
+<div class="top"><div><div class="tag">Game POC / 04 / physical incremental</div><h1>The Bridge Is a Rubber Band</h1></div><span class="pill">Interactive hypothesis · no accounts</span></div>
+<p class="subtitle">Pull the elastic bridge, fire cargo into the glowing warehouse, and grow a tiny shipping empire. One small mechanic, one very stretchy bridge.</p>
+<section class="stats" aria-label="Game stats"><div class="stat"><span>DELIVERIES</span><strong id="delivered">0</strong></div><div class="stat"><span>COINS</span><strong id="coins">0</strong></div><div class="stat"><span>BEST COMBO</span><strong id="combo">0</strong></div><div class="stat"><span>TIME LEFT</span><strong id="time">120s</strong></div></section>
+<div class="scene"><canvas id="game" width="900" height="420" aria-label="Elastic cargo bridge game. Drag the cargo left and down and release to launch it toward the glowing destination."></canvas><div class="overlay" id="sceneLabel">DRAG THE GOLD CARGO BACK ↙ THEN RELEASE</div></div>
+<div class="board">
+<section class="panel">
+<h2>01 · Aim & launch</h2><p class="hint">Drag the crate on the left (mouse or touch). The dotted arc predicts the shot. Or adjust the sliders and press <kbd>Space</kbd> / Launch. Land inside the gold ring to collect coins.</p>
+<label for="power">Pull distance <span id="powerRead">94</span></label><input type="range" id="power" min="24" max="145" value="94" aria-label="Pull distance">
+<label for="lift">Launch elevation <span id="liftRead">40</span></label><input type="range" id="lift" min="-12" max="105" value="40" aria-label="Launch elevation">
+<div class="actions"><button id="launch" class="primary">↗ Launch cargo</button><button id="reset">↻ Restart</button></div>
+<div class="message" id="message" role="status" aria-live="polite">Try to hit the warehouse. Your first delivery pays instantly!</div>
+<div class="progress" aria-label="Zone progress"><div id="progressFill"></div></div>
+</section>
+<section class="panel"><h2>02 · Grow the operation</h2><p class="hint">A successful delivery earns coins. Upgrade the catapult or hire an automatic courier to keep your delivery streak going.</p>
+<div class="upgrades">
+<button class="upgrade" id="boost"><span>⚡ Reinforced rubber<br><small>Stronger throws +12% (level <em id="boostLvl">0</em>)</small></span><b id="boostCost">18 ◈</b></button>
+<button class="upgrade" id="auto"><span>✦ Auto courier<br><small>Delivers a parcel every 4s</small></span><b id="autoCost">35 ◈</b></button>
+</div><p class="hint" id="zone" style="margin:13px 0 0">Zone 1 · 0 / 3 deliveries to unlock next island.</p></section>
+</div>
+<p class="foot">POC for ledger ID GAME-20261104-21-02 · Re-evaluated concept score 94/100 (hypothesis, not user test). Standalone HTML/CSS/JavaScript, playable offline. This mini-game does not simulate the complete long-term prestige economy.</p>
+</main>
+<script>
+(function(){
+"use strict";
+const cv=document.getElementById("game"),ctx=cv.getContext("2d");
+const $=id=>document.getElementById(id);
+const W=900,H=420,ax=148,ay=274,g=570;
+const power=$("power"),lift=$("lift"),launchBtn=$("launch");
+let game,drag=false,flight=null,last=performance.now(),raf=0;
+function fresh(){return {coins:0,delivered:0,combo:0,best:0,score:0,time:120,started:false,over:false,pull:94,lift:40,boost:0,auto:false,autoTick:0,zone:1,target:{x:655,y:307,r:37},note:"Try to hit the warehouse. Your first delivery pays instantly!",particles:[],flash:0};}
+function clamp(x,a,b){return Math.max(a,Math.min(b,x));}
+function rnd(i){let x=Math.sin(i*36.289+12.58)*43758.5453;return x-Math.floor(x);}
+function targetFor(n){return {x:575+Math.round(rnd(n+2)*230),y:270+Math.round(rnd(n+5)*65),r:35};}
+function shotVelocity(){const s=1+game.boost*.12;return {vx:game.pull*6*s,vy:-game.lift*6*s};}
+function posAt(t,v){return {x:ax+v.vx*t,y:ay+v.vy*t+g*t*t/2};}
+function msg(s){game.note=s;$("message").textContent=s;}
+function refresh(){
+ $("delivered").textContent=game.delivered;$("coins").textContent=game.coins;
+ $("combo").textContent=game.best;$("time").textContent=Math.ceil(game.time)+"s";
+ power.value=game.pull;lift.value=game.lift;$("powerRead").textContent=game.pull;$("liftRead").textContent=game.lift;
+ $("boostLvl").textContent=game.boost;$("boostCost").textContent=(18+game.boost*14)+" ◈";
+ $("autoCost").textContent=game.auto?"ACTIVE ✓":"35 ◈";
+ $("boost").disabled=game.over||game.coins<18+game.boost*14||game.boost>=4;
+ $("auto").disabled=game.over||game.auto||game.coins<35;
+ launchBtn.disabled=game.over||!!flight;
+ $("zone").textContent="Zone "+game.zone+" · "+(game.delivered%3)+" / 3 deliveries to unlock next island.";
+ $("progressFill").style.width=((game.delivered%3)/3*100)+"%";
+ $("sceneLabel").textContent=game.over?"SHIFT COMPLETE · RESTART TO PLAY":flight?"CARGO IN FLIGHT":drag?"RELEASE TO LAUNCH":"DRAG THE GOLD CARGO BACK ↙ THEN RELEASE";
+}
+function reset(){game=fresh();flight=null;drag=false;last=performance.now();msg(game.note);refresh();}
+function burst(x,y,color){for(let i=0;i<20;i++){let angle=i*Math.PI*2/20;game.particles.push({x:x,y:y,vx:Math.cos(angle)*(55+rnd(i+game.delivered)*110),vy:Math.sin(angle)*(40+rnd(i+9)*120)-40,ttl:.8,color:color});}}
+function delivery(auto){
+ const gain=12+Math.min(12,game.combo*2)+game.zone*2;
+ game.delivered++;game.combo++;game.best=Math.max(game.best,game.combo);game.coins+=gain;game.score+=100+game.combo*20;
+ burst(game.target.x,game.target.y,"#ffe7a2");
+ if(game.delivered%3===0){game.zone++;game.coins+=12;msg("🎉 Island "+game.zone+" unlocked! +12 coins. Keep shipping!");}
+ else msg((auto?"✦ Courier delivery! ":"✓ Perfect landing! ")+"+"+gain+" coins · "+game.combo+"x streak");
+ game.target=targetFor(game.delivered+3);game.flash=1;refresh();
+}
+function miss(){game.combo=0;msg("Missed the warehouse. Adjust the dotted arc and try again.");refresh();}
+function fire(){
+ if(game.over||flight)return;
+ if(!game.started){game.started=true;last=performance.now();}
+ const v=shotVelocity();flight={t:0,x:ax,y:ay,v:v,trail:[]};drag=false;msg("Cargo away! Watch the landing…");refresh();
+}
+function purchaseBoost(){const cost=18+game.boost*14;if(!game.over&&game.boost<4&&game.coins>=cost){game.coins-=cost;game.boost++;msg("⚡ Reinforced rubber equipped. Your next shot flies farther!");refresh();}}
+function purchaseAuto(){if(!game.over&&!game.auto&&game.coins>=35){game.coins-=35;game.auto=true;game.autoTick=0;msg("✦ Auto courier hired! Passive deliveries every 4 seconds.");refresh();}}
+function draw(){
+ const gr=ctx.createLinearGradient(0,0,0,H);gr.addColorStop(0,"#28335b");gr.addColorStop(1,"#181f38");ctx.fillStyle=gr;ctx.fillRect(0,0,W,H);
+ for(let i=0;i<24;i++){const x=rnd(i+20)*W,y=15+rnd(i+80)*196;ctx.fillStyle="rgba(233,232,255,"+(.08+rnd(i+90)*.3)+")";ctx.beginPath();ctx.arc(x,y,1+rnd(i+99)*2,0,Math.PI*2);ctx.fill();}
+ ctx.fillStyle="#2a3459";ctx.beginPath();ctx.moveTo(0,310);for(let x=0;x<=W;x+=15)ctx.lineTo(x,310+Math.sin(x*.013)*13);ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.fill();
+ ctx.fillStyle="#263753";ctx.fillRect(0,349,W,71);ctx.strokeStyle="#394962";ctx.lineWidth=2;for(let x=0;x<W;x+=45){ctx.beginPath();ctx.moveTo(x,354);ctx.lineTo(x-30,H);ctx.stroke();}
+ ctx.fillStyle="#776075";ctx.fillRect(60,296,164,18);ctx.fillStyle="#b2a29b";ctx.fillRect(61,293,162,6);ctx.fillStyle="#473e58";ctx.fillRect(102,264,17,33);ctx.fillRect(179,264,17,33);
+ const tar=game.target;let aura=ctx.createRadialGradient(tar.x,tar.y,1,tar.x,tar.y,80);aura.addColorStop(0,"#ffe18d66");aura.addColorStop(1,"#ffe18d00");ctx.fillStyle=aura;ctx.fillRect(tar.x-80,tar.y-80,160,160);
+ ctx.fillStyle="#4e5369";ctx.fillRect(tar.x-47,tar.y+30,94,35);ctx.fillStyle="#ad8265";ctx.fillRect(tar.x-39,tar.y-23,78,62);ctx.fillStyle="#dec79a";ctx.fillRect(tar.x-42,tar.y-28,84,9);
+ ctx.fillStyle="#4b4757";ctx.fillRect(tar.x-25,tar.y+2,50,37);
+ ctx.save();ctx.strokeStyle="#ffe19d";ctx.lineWidth=5;ctx.setLineDash([10,7]);ctx.beginPath();ctx.arc(tar.x,tar.y,tar.r+Math.sin(performance.now()*.004)*2,0,Math.PI*2);ctx.stroke();ctx.restore();
+ ctx.fillStyle="#ffefbe";ctx.textAlign="center";ctx.font="bold 13px system-ui";ctx.fillText("DELIVER HERE",tar.x,tar.y-54);
+ ctx.fillStyle="#b9b2cc";ctx.fillRect(ax-10,ay+9,20,27);ctx.fillStyle="#f2d0a1";ctx.beginPath();ctx.arc(ax,ay+2,13,0,Math.PI*2);ctx.fill();
+ if(!flight&&!game.over){
+  let bx=ax-game.pull,by=ay+game.lift;
+  ctx.strokeStyle="#f6bc8b";ctx.lineWidth=7;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(ax-7,ay-2);ctx.lineTo(bx,by);ctx.lineTo(ax+9,ay+5);ctx.stroke();
+  const v=shotVelocity();ctx.save();ctx.setLineDash([4,8]);ctx.lineWidth=3;ctx.strokeStyle="#b7fbe3";ctx.beginPath();let first=true;
+  for(let t=0;t<2.6;t+=.055){const p=posAt(t,v);if(p.x>W||p.y>H||p.y<10)break;first?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y);first=false;}ctx.stroke();ctx.restore();
+  drawCargo(bx,by,0);
+ }
+ if(flight){ctx.strokeStyle="#f5cba577";ctx.lineWidth=3;ctx.beginPath();flight.trail.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();drawCargo(flight.x,flight.y,flight.t*8);}
+ game.particles.forEach(p=>{ctx.globalAlpha=clamp(p.ttl,0,1);ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);ctx.fill();});ctx.globalAlpha=1;
+ if(game.flash>0){ctx.fillStyle="rgba(255,233,168,"+(game.flash*.1)+")";ctx.fillRect(0,0,W,H);}
+ if(game.over){ctx.fillStyle="#0c1221d9";ctx.fillRect(0,0,W,H);ctx.textAlign="center";ctx.fillStyle="#ffdf9b";ctx.font="bold 42px system-ui";ctx.fillText("SHIFT COMPLETE",W/2,165);ctx.fillStyle="#fff";ctx.font="bold 22px system-ui";ctx.fillText(game.delivered+" deliveries · "+game.score+" points",W/2,212);ctx.font="16px system-ui";ctx.fillText("Press Restart to ship again",W/2,248);}
+}
+function drawCargo(x,y,angle){ctx.save();ctx.translate(x,y);ctx.rotate(angle);ctx.shadowColor="#ffe3a5";ctx.shadowBlur=13;ctx.fillStyle="#ffcb81";ctx.strokeStyle="#654769";ctx.lineWidth=4;ctx.fillRect(-13,-13,26,26);ctx.strokeRect(-13,-13,26,26);ctx.shadowBlur=0;ctx.strokeStyle="#f0a05b";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-9,-9);ctx.lineTo(9,9);ctx.moveTo(9,-9);ctx.lineTo(-9,9);ctx.stroke();ctx.restore();}
+function tick(now){
+ const dt=clamp((now-last)/1000,0,.035);last=now;
+ if(game.started&&!game.over){game.time-=dt;if(game.time<=0){game.time=0;game.over=true;flight=null;drag=false;msg("Shift complete! "+game.delivered+" deliveries, "+game.score+" points. Restart for another run.");refresh();}else{
+ if(game.auto){game.autoTick+=dt;if(game.autoTick>=4){game.autoTick-=4;delivery(true);}}
+ if(flight){const prev=flight.t;flight.t+=dt;const p=posAt(flight.t,flight.v);flight.x=p.x;flight.y=p.y;flight.trail.push({x:p.x,y:p.y});if(flight.trail.length>30)flight.trail.shift();
+ const dx=p.x-game.target.x,dy=p.y-game.target.y;
+ if(dx*dx+dy*dy<(game.target.r+8)*(game.target.r+8)){flight=null;delivery(false);}
+ else if(p.x>W+20||p.y>H+30||flight.t>3.4){flight=null;miss();}
+ }
+ }}
+ for(const p of game.particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=130*dt;p.ttl-=dt;}
+ game.particles=game.particles.filter(p=>p.ttl>0);game.flash=Math.max(0,game.flash-dt*2.7);
+ $("time").textContent=Math.ceil(game.time)+"s";
+ draw();raf=requestAnimationFrame(tick);
+}
+function pointerPos(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height};}
+function aim(e){const p=pointerPos(e);game.pull=Math.round(clamp(ax-p.x,24,145));game.lift=Math.round(clamp(p.y-ay,-12,105));refresh();}
+cv.addEventListener("pointerdown",e=>{if(game.over||flight)return;const p=pointerPos(e),bx=ax-game.pull,by=ay+game.lift;if(Math.hypot(p.x-bx,p.y-by)>95&&p.x>ax+40)return;drag=true;cv.setPointerCapture(e.pointerId);aim(e);});
+cv.addEventListener("pointermove",e=>{if(drag)aim(e);});
+cv.addEventListener("pointerup",e=>{if(drag){aim(e);fire();}});
+cv.addEventListener("pointercancel",()=>{drag=false;refresh();});
+power.addEventListener("input",()=>{game.pull=Number(power.value);refresh();});
+lift.addEventListener("input",()=>{game.lift=Number(lift.value);refresh();});
+launchBtn.addEventListener("click",fire);$("reset").addEventListener("click",reset);
+$("boost").addEventListener("click",purchaseBoost);$("auto").addEventListener("click",purchaseAuto);
+document.addEventListener("keydown",e=>{if(e.target instanceof HTMLInputElement)return;if(e.code==="Space"||e.code==="Enter"){e.preventDefault();fire();}else if(e.code==="ArrowRight"){game.pull=clamp(game.pull+5,24,145);refresh();}else if(e.code==="ArrowLeft"){game.pull=clamp(game.pull-5,24,145);refresh();}else if(e.code==="ArrowUp"){game.lift=clamp(game.lift+5,-12,105);refresh();}else if(e.code==="ArrowDown"){game.lift=clamp(game.lift-5,-12,105);refresh();}});
+reset();raf=requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
