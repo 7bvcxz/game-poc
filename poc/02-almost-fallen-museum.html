@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Almost-Fallen Museum — Game POC 02</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color-scheme:dark;background:#0a101e;color:#edf2fa}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -30%,#29395d,transparent 60%),#0a101e}
+main{max-width:1050px;margin:auto;padding:24px 18px 60px}a{color:#b6a1ff;text-decoration:none}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+h1{margin:18px 0 4px;line-height:1.15;font-size:clamp(30px,5vw,52px);letter-spacing:-.06em}
+p{color:#b6c1d5}.lead{max-width:720px;margin:6px 0 20px}
+.panel{border:1px solid #31415c;border-radius:20px;background:#131e32;box-shadow:0 16px 60px #02071466;padding:18px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.stat{background:#1c2940;border-radius:13px;padding:12px 15px}.stat small{color:#a7b5cf;display:block}.stat strong{display:block;font-size:23px;font-variant-numeric:tabular-nums}
+canvas{width:100%;height:auto;display:block;border-radius:14px;border:1px solid #34435b;background:#111a2b}
+.controls{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;margin-top:14px}
+.group{background:#1c2940;border-radius:12px;padding:12px 16px}label{display:flex;justify-content:space-between;font-size:13px;color:#dbe3ef}
+input[type=range]{width:100%;accent-color:#b6a1ff;touch-action:auto}
+button{background:#b6a1ff;border:0;border-radius:12px;padding:15px 18px;color:#151323;font-weight:800;cursor:pointer;font:inherit}
+button:disabled{opacity:.5;cursor:not-allowed}.secondary{background:#26354d;color:#eef2ff}
+.notice{display:flex;align-items:center;gap:12px;margin-top:12px;justify-content:space-between;flex-wrap:wrap}
+#message{color:#f5dfa6;font-weight:650}.help{margin-top:18px;background:#111a2b;padding:18px;border-radius:16px;color:#b9c6db}
+.help strong{color:#fff}kbd{background:#2c3b53;border-radius:5px;padding:3px 6px;color:#fff}
+@media(max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}.controls{grid-template-columns:1fr 1fr}.controls .group{grid-column:1/-1}button{min-height:48px}}
+</style>
+</head>
+<body><main>
+<div class="top"><a href="../index.html">← Game POC 목록</a><span style="color:#9daac3">#02 · GAME-20261029-17-01 · 평가 96/100</span></div>
+<h1>Almost-Fallen Museum</h1><p class="lead">아슬아슬하게 기울어진 전시품이 가장 비싸다. 무게추를 옮겨 쓰러지는 순간을 늦추고, 위험할수록 높은 관람 점수를 얻어보자.</p>
+<section class="panel">
+<div class="stats">
+<div class="stat"><small>관람 점수</small><strong id="score">0</strong></div>
+<div class="stat"><small>버틴 시간</small><strong id="seconds">0.0초</strong></div>
+<div class="stat"><small>기울기</small><strong id="tilt">0°</strong></div>
+<div class="stat"><small>긴급 받침대</small><strong id="props">2개</strong></div>
+</div>
+<canvas id="scene" width="920" height="420" aria-label="흔들리는 박물관 조각과 무게추, 균형 상태의 실시간 화면"></canvas>
+<div class="controls">
+<div class="group"><label for="counter">무게추 위치 <span id="counterValue">중앙</span></label><input aria-label="무게추 조절" id="counter" type="range" min="-100" max="100" value="0" step="1"></div>
+<button id="prop" type="button" class="secondary" disabled>받침대 사용</button>
+<button id="start" type="button">전시 시작</button>
+</div>
+<div class="notice"><span id="message" aria-live="polite">전시 시작을 눌러 30초 동안 버텨보자.</span><span id="danger" style="color:#adb8ce">위험도 —</span></div>
+</section>
+<div class="help"><strong>플레이 방법</strong><p>무게추를 좌우로 끌거나 <kbd>←</kbd> <kbd>→</kbd> 키로 옮겨 흔들리는 조각을 안정시켜. 너무 안전하면 점수가 느리게 오르고, 위험하게 기울이면 점수가 빨리 올라가! <strong>30초 버티면 성공</strong>. 쓰러지기 직전에는 받침대 버튼(<kbd>Space</kbd>)으로 두 번 구조할 수 있어. 15초부터 흔들림이 거세져.</p><p style="font-size:12px;margin-bottom:0">POC 가상 게임 규칙 · 실제 플레이테스트나 상용 물리 엔진 검증은 아직 수행하지 않음.</p></div>
+</main>
+<script>
+"use strict";
+const canvas=document.getElementById("scene"),ctx=canvas.getContext("2d");
+const el=id=>document.getElementById(id);
+let angle=0,velocity=0,weight=0,seconds=0,score=0,props=2,playing=false,ended=false,last=0,seed=0;
+function reset(){
+ angle=0;velocity=0;weight=0;seconds=0;score=0;props=2;playing=false;ended=false;seed=0;
+ el("counter").value=0;el("start").textContent="전시 시작";el("prop").disabled=true;
+ el("message").textContent="전시 시작을 눌러 30초 동안 버텨보자.";updateUI();draw();
+}
+function updateUI(){
+ const degree=Math.round(angle*180/Math.PI);
+ el("score").textContent=Math.floor(score).toLocaleString("ko-KR");
+ el("seconds").textContent=seconds.toFixed(1)+"초";
+ el("tilt").textContent=(degree>0?"+":"")+degree+"°";
+ el("props").textContent=props+"개";
+ el("counterValue").textContent=weight===0?"중앙":(weight>0?"오른쪽 ":"왼쪽 ")+Math.round(Math.abs(weight)*100)+"%";
+ const d=Math.min(100,Math.round(Math.abs(angle)/.68*100));
+ el("danger").textContent="위험도 "+d+"%";
+ el("danger").style.color=d>70?"#ff928d":d>42?"#f4ca79":"#98d6af";
+ el("prop").disabled=!playing||props===0;
+}
+function start(){
+ if(playing)return;reset();playing=true;last=performance.now();
+ el("start").textContent="다시 시작";el("message").textContent="전시 중! 아슬아슬한 균형에서 보너스 점수를 모아봐.";
+ el("prop").disabled=false;
+}
+function finish(won){
+ playing=false;ended=true;el("start").textContent="다시 도전";el("prop").disabled=true;
+ el("message").textContent=won?"성공! 30초 동안 예술품을 지켰어. 최종 점수 "+Math.floor(score)+"점":"앗! 전시품이 넘어졌어. "+seconds.toFixed(1)+"초 기록, 다시 도전해봐.";
+}
+function useProp(){
+ if(!playing||props<=0)return;
+ props--;velocity*=.05;angle*=.18;score+=60;
+ el("message").textContent="긴급 받침대 성공! +60점 · 남은 받침대 "+props+"개";
+ updateUI();
+}
+function draw(){
+ const w=canvas.width,h=canvas.height;
+ ctx.clearRect(0,0,w,h);
+ const wall=ctx.createLinearGradient(0,0,0,h);wall.addColorStop(0,"#293a55");wall.addColorStop(1,"#101a2c");
+ ctx.fillStyle=wall;ctx.fillRect(0,0,w,h);
+ ctx.strokeStyle="#405371";ctx.lineWidth=4;ctx.strokeRect(24,22,w-48,h-44);
+ for(let i=0;i<5;i++){ctx.strokeStyle="#ffffff10";ctx.beginPath();ctx.moveTo(65+i*185,50);ctx.lineTo(65+i*185,335);ctx.stroke();}
+ ctx.fillStyle="#223149";ctx.fillRect(0,360,w,60);
+ ctx.fillStyle="#f5d3a0";ctx.fillRect(380,354,160,16);
+ ctx.fillStyle="#8d9db9";ctx.beginPath();ctx.moveTo(460,322);ctx.lineTo(409,354);ctx.lineTo(511,354);ctx.closePath();ctx.fill();
+ ctx.save();ctx.translate(460,315);ctx.rotate(angle);
+ ctx.shadowColor="#0009";ctx.shadowBlur=18;ctx.fillStyle="#bf8bdc";ctx.fillRect(-255,-15,510,24);ctx.shadowBlur=0;
+ ctx.fillStyle="#f9d6a0";ctx.fillRect(-255,-15,510,5);
+ // ceramic vase
+ ctx.fillStyle="#f7edd8";ctx.beginPath();ctx.moveTo(-28,-15);ctx.bezierCurveTo(-58,-60,-53,-117,-19,-127);ctx.lineTo(19,-127);ctx.bezierCurveTo(53,-117,58,-60,28,-15);ctx.closePath();ctx.fill();
+ ctx.fillStyle="#d3a56e";ctx.fillRect(-17,-141,34,14);
+ ctx.strokeStyle="#b68493";ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(-27,-84);ctx.quadraticCurveTo(4,-99,27,-76);ctx.stroke();
+ // weight
+ const x=weight*222;ctx.fillStyle="#e7b36e";ctx.fillRect(x-27,9,54,12);ctx.fillStyle="#f8d99d";ctx.beginPath();ctx.arc(x,0,23,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle="#392d30";ctx.font="bold 15px system-ui";ctx.textAlign="center";ctx.fillText("W",x+1,5);
+ ctx.restore();
+ ctx.fillStyle="#dbe8ff";ctx.textAlign="center";ctx.font="bold 15px system-ui";ctx.fillText("THE ALMOST-FALLEN COLLECTION",460,65);
+ const red=Math.min(1,Math.abs(angle)/.68);
+ ctx.fillStyle=red>.7?"#ff998b":red>.4?"#efca8e":"#9bdfbd";
+ ctx.font="14px system-ui";ctx.fillText(playing?"전시 중 · 30초 버티기":"전시 대기",460,88);
+}
+function frame(now){
+ let dt=last?Math.min(.04,(now-last)/1000):0;last=now;
+ if(playing&&dt>0){
+  seconds+=dt;
+  const gust=Math.sin(seconds*1.48)*.24+Math.cos(seconds*2.13)*.16+Math.sin(seconds*3.2)*.11;
+  const difficulty=seconds>15?1.85:1;
+  const accel=angle*1.7 + gust*difficulty - weight*1.55;
+  velocity=(velocity+accel*dt)*Math.pow(.992,dt*60);
+  angle+=velocity*dt;
+  const risk=Math.min(1,Math.abs(angle)/.68);
+  score+=(6+40*risk*risk)*dt;
+  if(seconds>=30)finish(true);
+  else if(Math.abs(angle)>=.68)finish(false);
+  else if(seconds>15&&seconds-dt<=15)el("message").textContent="후반전! 난류가 강해졌어. 무게추를 재빠르게 움직여!";
+  updateUI();
+ }
+ draw();
+ requestAnimationFrame(frame);
+}
+el("start").addEventListener("click",start);
+el("prop").addEventListener("click",useProp);
+el("counter").addEventListener("input",e=>{weight=Number(e.target.value)/100;updateUI();});
+document.addEventListener("keydown",e=>{
+ if(e.target.matches("input,textarea,select"))return;
+ if(e.key==="ArrowLeft"||e.key==="ArrowRight"){e.preventDefault();weight=Math.max(-1,Math.min(1,weight+(e.key==="ArrowLeft"?-.12:.12)));el("counter").value=Math.round(weight*100);updateUI();}
+ if(e.code==="Space"){e.preventDefault();useProp();}
+});
+reset();requestAnimationFrame(frame);
+</script></body></html>
