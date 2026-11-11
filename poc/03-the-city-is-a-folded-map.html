@@ -1,0 +1,38 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>The City Is a Folded Map</title><style>
+*{box-sizing:border-box}body{margin:0;background:#101725;color:#e9f0ff;font:16px system-ui,sans-serif}main{max-width:1000px;margin:auto;padding:25px 18px}a{color:#b6ccff}h1{font-size:clamp(29px,5vw,46px);margin:20px 0 8px}p{color:#b5c2d8}.panel{background:#1b2940;border:1px solid #354765;border-radius:18px;padding:18px}.stats{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px}.stat{background:#273b58;border-radius:12px;padding:10px 18px;flex:1;min-width:115px}.stat strong{display:block;font-size:24px}.stat small{color:#aec3dc}canvas{width:100%;height:auto;background:#f0e8d5;border-radius:12px;display:block;touch-action:none;cursor:grab}canvas:active{cursor:grabbing}.controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px}button{padding:12px 17px;border:0;border-radius:10px;background:#b1c7ff;color:#142039;font-weight:750;cursor:pointer}button.secondary{background:#344b69;color:#fff}#message{color:#f2d799;min-height:28px;margin-top:12px}.help{margin-top:18px;font-size:14px;line-height:1.65}@media(max-width:600px){.stat{min-width:90px;padding:8px}.stat strong{font-size:19px}}</style></head><body><main>
+<a href="../index.html">← Game POC 목록</a><h1>The City Is a Folded Map</h1><p>종이 도시를 접어서 배달 경로를 단축해! 접힌 지도의 양 끝은 순간이동 통로가 돼.</p>
+<section class="panel"><div class="stats"><div class="stat"><small>배달 점수</small><strong id="score">0</strong></div><div class="stat"><small>배달 완료</small><strong id="deliveries">0/5</strong></div><div class="stat"><small>남은 시간</small><strong id="time">90초</strong></div><div class="stat"><small>현재 거리</small><strong id="distance">—</strong></div></div>
+<canvas id="map" width="900" height="560" aria-label="접는 선을 드래그하여 배달 거리 줄이는 지도 게임"></canvas>
+<div class="controls"><button id="fold">접기 / 배달!</button><button class="secondary" id="reset">처음부터</button><button class="secondary" id="hint">힌트 보기</button></div><div id="message" aria-live="polite">점선을 좌우로 드래그해 접는 위치를 정한 뒤 배달 버튼을 눌러봐.</div></section>
+<div class="panel help"><strong>조작법</strong><p>지도에서 점선 접기 축을 좌우로 드래그하거나 <b>← →</b> 키로 옮겨. 축 오른쪽에 있는 목적지는 접히면서 축 왼쪽으로 거울처럼 이동해. 빨간 출발점과 파란 도착점이 가까워질수록 높은 점수를 얻어. <b>5번 배달</b>하면 승리! 90초 제한이며, 매번 새로운 지도가 나와. 접힌 위치는 애니메이션으로 표시돼.</p><p>이 POC는 지도를 접어 이동 거리를 줄이는 핵심 재미만 검증하는 단일 HTML 실험이야. 실사용 검증은 수행하지 않았어.</p></div></main><script>
+"use strict";
+const c=document.getElementById("map"),x=c.getContext("2d"),$=id=>document.getElementById(id);
+let line=450,source={x:150,y:250},target={x:720,y:320},score=0,delivered=0,remaining=90,active=true,drag=false,flash=0,last=0,hint=false;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function newRound(){const n=delivered;source={x:90+(n*97)%175,y:125+(n*89)%295};target={x:645+(n*71)%170,y:120+(n*117)%310};line=450;flash=0;hint=false;update();}
+function projected(){return {x:2*line-target.x,y:target.y};}
+function distance(){const p=projected();return Math.hypot(source.x-p.x,source.y-p.y);}
+function update(){$("score").textContent=score;$("deliveries").textContent=delivered+"/5";$("time").textContent=Math.ceil(remaining)+"초";$("distance").textContent=Math.round(distance())+"m";}
+function draw(){x.clearRect(0,0,900,560);x.fillStyle="#eee7d4";x.fillRect(0,0,900,560);
+x.strokeStyle="#c9c1af";x.lineWidth=1;for(let i=0;i<=900;i+=45){x.beginPath();x.moveTo(i,0);x.lineTo(i,560);x.stroke();}for(let i=0;i<=560;i+=45){x.beginPath();x.moveTo(0,i);x.lineTo(900,i);x.stroke();}
+x.fillStyle="#cbd5b9";for(let i=0;i<9;i++){const xx=45+(i*131)%800,yy=50+(i*97)%450;x.fillRect(xx,yy,58,30);}
+x.fillStyle="#5279b444";x.fillRect(line,0,900-line,560);
+x.save();x.setLineDash([12,9]);x.lineWidth=5;x.strokeStyle="#ad6b56";x.beginPath();x.moveTo(line,0);x.lineTo(line,560);x.stroke();x.restore();
+const p=projected();x.setLineDash([8,6]);x.lineWidth=3;x.strokeStyle="#546d9c";x.beginPath();x.moveTo(target.x,target.y);x.lineTo(p.x,p.y);x.stroke();x.setLineDash([]);
+x.lineWidth=5;x.strokeStyle=distance()<100?"#2c9b76":"#dfae5a";x.beginPath();x.moveTo(source.x,source.y);x.lineTo(p.x,p.y);x.stroke();
+function marker(a,color,label){x.fillStyle=color;x.beginPath();x.arc(a.x,a.y,17,0,Math.PI*2);x.fill();x.fillStyle="#fff";x.textAlign="center";x.font="bold 15px system-ui";x.fillText(label,a.x,a.y+5);}
+marker(source,"#d95c56","S");marker(target,"#4578b6","D");marker(p,"#2b9d8a","↳");
+x.fillStyle="#33445b";x.font="bold 16px system-ui";x.textAlign="left";x.fillText("접기 축 ◀ 드래그 ▶",clamp(line-100,15,680),35);
+if(hint){const optimal=(source.x+target.x)/2;x.strokeStyle="#27a37d";x.setLineDash([4,6]);x.beginPath();x.moveTo(optimal,0);x.lineTo(optimal,560);x.stroke();x.setLineDash([]);}
+if(flash>0){x.fillStyle="#1c3044db";x.fillRect(255,225,390,92);x.fillStyle="#fff";x.font="bold 27px system-ui";x.textAlign="center";x.fillText("배달 성공! +"+flash+"점",450,282);}
+}
+function move(e){const r=c.getBoundingClientRect();line=clamp((e.clientX-r.left)*900/r.width,330,590);update();draw();}
+c.addEventListener("pointerdown",e=>{if(!active)return;drag=true;c.setPointerCapture(e.pointerId);move(e);});
+c.addEventListener("pointermove",e=>{if(drag)move(e);});for(const k of ["pointerup","pointercancel","lostpointercapture"])c.addEventListener(k,()=>drag=false);
+document.addEventListener("keydown",e=>{if(!active)return;if(e.key==="ArrowLeft"||e.key==="ArrowRight"){e.preventDefault();line=clamp(line+(e.key==="ArrowLeft"?-12:12),330,590);update();draw();}if(e.key==="Enter")deliver();});
+function deliver(){if(!active)return;const d=distance(),points=Math.max(10,Math.round(220-d*.55));score+=points;delivered++;flash=points;update();$("message").textContent="배달 "+delivered+" 완료! 접힌 거리 "+Math.round(d)+"m · +"+points+"점";
+draw();if(delivered>=5){active=false;$("message").textContent="도시 배달 완료! 최종 "+score+"점 · 다시 도전해봐!";return;}setTimeout(()=>{if(!active)return;newRound();$("message").textContent="새 배달! 접기 축을 다시 움직여봐.";},650);}
+$("fold").addEventListener("click",deliver);$("hint").addEventListener("click",()=>{hint=!hint;$("message").textContent="초록 점선은 최적 접기 위치야. 스스로 맞추면 더 재미있어!";draw();});
+$("reset").addEventListener("click",()=>{score=delivered=0;remaining=90;active=true;newRound();$("message").textContent="새 게임! 점선을 드래그해 첫 배달을 시작해.";});
+function tick(now){if(last&&active){remaining=Math.max(0,remaining-Math.min(.1,(now-last)/1000));if(remaining<=0){active=false;$("message").textContent="시간 종료! "+delivered+"건 배달 · "+score+"점. 다시 도전해봐.";}}last=now;update();draw();requestAnimationFrame(tick);}newRound();requestAnimationFrame(tick);
+</script></body></html>
